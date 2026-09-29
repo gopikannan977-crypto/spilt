@@ -1,0 +1,6 @@
+{
+  "name": "SplitSphere",
+  "description": "Every expense. One clear balance. Modern payments & expense sharing platform with Financial Orbit visualization, smart splitting, and one-tap settlement optimization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

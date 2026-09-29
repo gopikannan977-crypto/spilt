@@ -1,0 +1,70 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-primary: 67 56 202; /* Deep Indigo #4338CA */
+    --color-primary-light: 79 70 229; /* Indigo 600 */
+    --color-secondary: 124 58 237; /* Electric Violet #7C3AED */
+    --color-positive: 5 150 105; /* Emerald #059669 */
+    --color-warning: 217 119 6; /* Amber #D97706 */
+    --color-negative: 225 29 72; /* Rose #E11D48 */
+
+    --bg-main: #f8fafc;
+    --bg-surface: #ffffff;
+    --bg-subtle: #f1f5f9;
+    --border-subtle: rgba(226, 232, 240, 0.8);
+    --text-primary: #0f172a;
+    --text-muted: #64748b;
+  }
+
+  .dark {
+    --bg-main: #0b0f19;
+    --bg-surface: #111827;
+    --bg-subtle: #1e293b;
+    --border-subtle: rgba(51, 65, 85, 0.5);
+    --text-primary: #f8fafc;
+    --text-muted: #94a3b8;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    background-color: var(--bg-main);
+    color: var(--text-primary);
+  }
+
+  .font-mono-tabular {
+    font-family: 'JetBrains Mono', monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Glass and Orbit utilities */
+.orbit-surface {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 20px;
+}
+
+.orbit-glow-indigo {
+  box-shadow: 0 0 25px -5px rgba(79, 70, 229, 0.15);
+}
+
+.orbit-glow-violet {
+  box-shadow: 0 0 25px -5px rgba(124, 58, 237, 0.15);
+}
+
+/* Custom subtle scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}

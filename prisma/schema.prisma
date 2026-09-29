@@ -1,0 +1,272 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  USER
+}
+
+enum SphereCategory {
+  TRAVEL
+  FRIENDS
+  APARTMENT
+  OFFICE
+  FAMILY
+  EVENT
+  PROJECT
+  OTHER
+}
+
+enum CurrencyCode {
+  INR
+  USD
+  EUR
+  GBP
+  AED
+  SGD
+}
+
+enum SplitMethod {
+  EQUAL
+  EXACT
+  PERCENTAGE
+  SHARES
+}
+
+enum PaymentMethod {
+  UPI
+  CASH
+  BANK_TRANSFER
+  CARD
+  OTHER
+}
+
+enum PaymentRequestStatus {
+  PENDING
+  PAID
+  REJECTED
+}
+
+enum NotificationType {
+  EXPENSE
+  PAYMENT_REQUEST
+  SETTLEMENT
+  INVITATION
+  REMINDER
+}
+
+model User {
+  id               String            @id @default(uuid())
+  email            String            @unique
+  name             String
+  passwordHash     String
+  avatar           String?
+  role             Role              @default(USER)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  refreshTokens    RefreshToken[]
+  sphereMembers    SphereMember[]
+  createdSpheres   MoneySphere[]     @relation("SphereCreator")
+  paidExpenses     Expense[]         @relation("ExpensePayer")
+  shares           ExpenseParticipant[]
+  sentSettlements  Settlement[]      @relation("SettlementFrom")
+  recvSettlements  Settlement[]      @relation("SettlementTo")
+  sentRequests     PaymentRequest[]  @relation("PaymentRequestFrom")
+  recvRequests     PaymentRequest[]  @relation("PaymentRequestTo")
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+  receipts         Receipt[]
+
+  @@index([email])
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model MoneySphere {
+  id            String          @id @default(uuid())
+  name          String
+  description   String?
+  category      SphereCategory  @default(FRIENDS)
+  currency      CurrencyCode    @default(INR)
+  coverGradient String          @default("from-indigo-600 via-violet-600 to-purple-700")
+  createdBy     String
+  creator       User            @relation("SphereCreator", fields: [createdBy], references: [id])
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  members       SphereMember[]
+  expenses      Expense[]
+  settlements   Settlement[]
+  paymentReqs   PaymentRequest[]
+  reminders     Reminder[]
+
+  @@index([createdBy])
+}
+
+model SphereMember {
+  id        String       @id @default(uuid())
+  sphereId  String
+  sphere    MoneySphere  @relation(fields: [sphereId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      Role         @default(USER)
+  joinedAt  DateTime     @default(now())
+
+  @@unique([sphereId, userId])
+  @@index([sphereId])
+  @@index([userId])
+}
+
+model Expense {
+  id           String               @id @default(uuid())
+  sphereId     String
+  sphere       MoneySphere          @relation(fields: [sphereId], references: [id], onDelete: Cascade)
+  title        String
+  amount       Int                  // Stored in minor currency units (paise/cents) to eliminate float drift
+  currency     CurrencyCode         @default(INR)
+  paidById     String
+  paidBy       User                 @relation("ExpensePayer", fields: [paidById], references: [id])
+  date         DateTime             @default(now())
+  category     String               @default("Food")
+  description  String?
+  splitMethod  SplitMethod          @default(EQUAL)
+  receiptUrl   String?
+  receiptName  String?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  participants ExpenseParticipant[]
+  receipts     Receipt[]
+
+  @@index([sphereId])
+  @@index([paidById])
+  @@index([date])
+}
+
+model ExpenseParticipant {
+  id          String   @id @default(uuid())
+  expenseId   String
+  expense     Expense  @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shareAmount Int      // Minor units allocated to this user
+  percentage  Float?
+  shares      Int?
+  exactAmount Int?
+
+  @@unique([expenseId, userId])
+  @@index([expenseId])
+  @@index([userId])
+}
+
+model Settlement {
+  id          String        @id @default(uuid())
+  sphereId    String
+  sphere      MoneySphere   @relation(fields: [sphereId], references: [id], onDelete: Cascade)
+  fromUserId  String
+  fromUser    User          @relation("SettlementFrom", fields: [fromUserId], references: [id])
+  toUserId    String
+  toUser      User          @relation("SettlementTo", fields: [toUserId], references: [id])
+  amount      Int           // Minor units
+  currency    CurrencyCode  @default(INR)
+  method      PaymentMethod @default(UPI)
+  referenceId String?
+  notes       String?
+  settledAt   DateTime      @default(now())
+
+  @@index([sphereId])
+  @@index([fromUserId])
+  @@index([toUserId])
+}
+
+model PaymentRequest {
+  id         String               @id @default(uuid())
+  sphereId   String
+  sphere     MoneySphere          @relation(fields: [sphereId], references: [id], onDelete: Cascade)
+  fromUserId String               // Creditor requesting funds
+  fromUser   User                 @relation("PaymentRequestFrom", fields: [fromUserId], references: [id])
+  toUserId   String               // Debtor owing funds
+  toUser     User                 @relation("PaymentRequestTo", fields: [toUserId], references: [id])
+  amount     Int                  // Minor units
+  currency   CurrencyCode         @default(INR)
+  note       String?
+  status     PaymentRequestStatus @default(PENDING)
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
+
+  @@index([sphereId])
+  @@index([fromUserId])
+  @@index([toUserId])
+  @@index([status])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@index([userId, read])
+}
+
+model Receipt {
+  id         String   @id @default(uuid())
+  expenseId  String?
+  expense    Expense? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  filename   String
+  mimeType   String
+  sizeBytes  Int
+  storageUrl String
+  createdAt  DateTime @default(now())
+
+  @@index([expenseId])
+  @@index([userId])
+}
+
+model Reminder {
+  id        String      @id @default(uuid())
+  sphereId  String
+  sphere    MoneySphere @relation(fields: [sphereId], references: [id], onDelete: Cascade)
+  title     String
+  dueDate   DateTime
+  resolved  Boolean     @default(false)
+  createdAt DateTime    @default(now())
+
+  @@index([sphereId, resolved])
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  action    String
+  details   String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userEmail String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+}
